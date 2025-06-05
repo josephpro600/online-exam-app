@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Online Exam App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 10px;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            text-align: center;
+        }
+        .hidden {
+            display: none;
+        }
+        .question-container {
+            margin-top: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 5px;
+            box-shadow: 0 0 5px #ccc;
+        }
+        .options label {
+            display: block;
+            margin: 8px 0;
+            cursor: pointer;
+        }
+        #timer {
+            font-weight: bold;
+            font-size: 1.2em;
+            color: #d9534f;
+            text-align: right;
+        }
+        #result {
+            margin-top: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 0 5px #ccc;
+        }
+        #start-btn, #next-btn, #submit-btn {
+            margin-top: 15px;
+            padding: 10px 20px;
+            font-size: 1em;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            background-color: #0275d8;
+            color: white;
+        }
+        #start-btn:hover, #next-btn:hover, #submit-btn:hover {
+            background-color: #025aa5;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+            box-sizing: border-box;
+        }
+        .error {
+            color: #d9534f;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <h1>Online Exam</h1>
+    <div id="timer" class="hidden">Time Left: 10:00</div>
+
+    <div id="student-info">
+        <label for="student-name">Name:</label>
+        <input type="text" id="student-name" placeholder="Enter your name" />
+        <label for="student-id">ID:</label>
+        <input type="text" id="student-id" placeholder="Enter your ID" />
+        <div id="info-error" class="error hidden">Please enter both name and ID to start.</div>
+        <button id="start-btn">Start Exam</button>
+    </div>
+
+    <div id="exam-container" class="hidden">
+        <div class="question-container">
+            <div id="question-text"></div>
+            <div class="options" id="options"></div>
+        </div>
+        <button id="next-btn">Next</button>
+    </div>
+
+    <div id="result" class="hidden"></div>
+
+    <script>
+        const questions = [
+            {
+                question: "What is the capital of France?",
+                options: ["Berlin", "Madrid", "Paris", "London"],
+                answer: 2
+            },
+            {
+                question: "Which planet is known as the Red Planet?",
+                options: ["Earth", "Mars", "Jupiter", "Saturn"],
+                answer: 1
+            },
+            {
+                question: "What is 2 + 2?",
+                options: ["3", "4", "5", "6"],
+                answer: 1
+            },
+            {
+                question: "Who wrote 'Hamlet'?",
+                options: ["Charles Dickens", "William Shakespeare", "Mark Twain", "Leo Tolstoy"],
+                answer: 1
+            },
+            {
+                question: "What is the boiling point of water at sea level?",
+                options: ["90°C", "100°C", "110°C", "120°C"],
+                answer: 1
+            }
+        ];
+
+        let currentQuestionIndex = 0;
+        let answers = [];
+        let timerInterval;
+        let timeLeft = 600; // 10 minutes in seconds
+
+        const timerEl = document.getElementById('timer');
+        const studentNameEl = document.getElementById('student-name');
+        const studentIdEl = document.getElementById('student-id');
+        const infoErrorEl = document.getElementById('info-error');
+        const startBtn = document.getElementById('start-btn');
+        const examContainer = document.getElementById('exam-container');
+        const questionTextEl = document.getElementById('question-text');
+        const optionsEl = document.getElementById('options');
+        const nextBtn = document.getElementById('next-btn');
+        const resultEl = document.getElementById('result');
+        const studentInfoEl = document.getElementById('student-info');
+
+        function startTimer() {
+            timerEl.classList.remove('hidden');
+            updateTimerDisplay();
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    submitExam();
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            timerEl.textContent = `Time Left: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function showQuestion(index) {
+            const q = questions[index];
+            questionTextEl.textContent = `Q${index + 1}. ${q.question}`;
+            optionsEl.innerHTML = '';
+            q.options.forEach((option, i) => {
+                const label = document.createElement('label');
+                const input = document.createElement('input');
+                input.type = 'radio';
+                input.name = 'option';
+                input.value = i;
+                if (answers[index] === i) {
+                    input.checked = true;
+                }
+                label.appendChild(input);
+                label.appendChild(document.createTextNode(option));
+                optionsEl.appendChild(label);
+            });
+            if (index === questions.length - 1) {
+                nextBtn.textContent = 'Submit';
+            } else {
+                nextBtn.textContent = 'Next';
+            }
+        }
+
+        function validateStudentInfo() {
+            if (studentNameEl.value.trim() === '' || studentIdEl.value.trim() === '') {
+                infoErrorEl.classList.remove('hidden');
+                return false;
+            }
+            infoErrorEl.classList.add('hidden');
+            return true;
+        }
+
+        function submitExam() {
+            clearInterval(timerInterval);
+            examContainer.classList.add('hidden');
+            timerEl.classList.add('hidden');
+            studentInfoEl.classList.add('hidden');
+
+            let score = 0;
+            let wrongQuestions = [];
+
+            questions.forEach((q, i) => {
+                if (answers[i] === q.answer) {
+                    score++;
+                } else {
+                    wrongQuestions.push({
+                        question: q.question,
+                        yourAnswer: answers[i] !== undefined ? q.options[answers[i]] : 'No answer',
+                        correctAnswer: q.options[q.answer]
+                    });
+                }
+            });
+
+            let resultHTML = `<h2>Exam Results</h2>`;
+            resultHTML += `<p>Name: ${studentNameEl.value.trim()}</p>`;
+            resultHTML += `<p>ID: ${studentIdEl.value.trim()}</p>`;
+            resultHTML += `<p>Score: ${score} / ${questions.length}</p>`;
+
+            if (wrongQuestions.length > 0) {
+                resultHTML += `<h3>Questions you got wrong:</h3><ul>`;
+                wrongQuestions.forEach(wq => {
+                    resultHTML += `<li><strong>Q:</strong> ${wq.question}<br/><strong>Your answer:</strong> ${wq.yourAnswer}<br/><strong>Correct answer:</strong> ${wq.correctAnswer}</li>`;
+                });
+                resultHTML += `</ul>`;
+            } else {
+                resultHTML += `<p>Congratulations! You answered all questions correctly.</p>`;
+            }
+
+            resultEl.innerHTML = resultHTML;
+            resultEl.classList.remove('hidden');
+        }
+
+        startBtn.addEventListener('click', () => {
+            if (!validateStudentInfo()) return;
+            studentInfoEl.classList.add('hidden');
+            examContainer.classList.remove('hidden');
+            currentQuestionIndex = 0;
+            answers = [];
+            showQuestion(currentQuestionIndex);
+            timeLeft = 600;
+            startTimer();
+        });
+
+        nextBtn.addEventListener('click', () => {
+            const selectedOption = document.querySelector('input[name="option"]:checked');
+            if (!selectedOption) {
+                alert('Please select an answer before proceeding.');
+                return;
+            }
+            answers[currentQuestionIndex] = parseInt(selectedOption.value);
+            if (currentQuestionIndex === questions.length - 1) {
+                submitExam();
+            } else {
+                currentQuestionIndex++;
+                showQuestion(currentQuestionIndex);
+            }
+        });
+    </script>
+</body>
+</html>
